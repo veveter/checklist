@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Чек-лист смены</title>
+<style>
+:root{
+  --bg:#e9eddc; --surface:#f7f8ef; --ink:#1f2a1c; --muted:#5b6753; --line:#c9d1b6;
+  --amber:#b8720a; --amber-bg:#f3e2bd; --good:#2f6b3a; --good-bg:#d6e8d2; --bad:#a82a22;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#1b2218; --surface:#252e21; --ink:#eaf0dd; --muted:#a3b097; --line:#3a4635;
+    --amber:#e3a23a; --amber-bg:#4a3a17; --good:#8fd09a; --good-bg:#26422b; --bad:#ff9e94;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;line-height:1.45}
+.wrap{max-width:680px;margin:0 auto;padding:16px 14px 90px}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:26px;margin:4px 0 2px}
+.muted{color:var(--muted);font-size:14px}
+button,input{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.tabs{display:flex;gap:8px;margin:14px 0}
+.tab{flex:1;padding:11px;border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:4px;font-weight:700}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+
+.who{display:flex;gap:8px;margin-bottom:14px}
+.who input{flex:1;padding:10px;border:1.5px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);min-width:0}
+
+.total{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:12px}
+.total .top{display:flex;justify-content:space-between;align-items:baseline}
+.total .pct{font-family:Georgia,serif;font-size:34px;line-height:1}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:8px 0 12px}
+.bar>i{display:block;height:100%;background:var(--amber);transition:width .25s}
+.bar.full>i{background:var(--good)}
+
+.steps{display:flex;gap:6px}
+.step{flex:1;min-width:0;text-align:left;background:transparent;border:1.5px solid var(--line);border-radius:5px;padding:7px 8px;color:var(--ink)}
+.step b{display:block;font-size:13px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step span{font-size:13px;color:var(--muted)}
+.step i{display:block;height:4px;background:var(--line);border-radius:2px;margin-top:5px;overflow:hidden}
+.step i em{display:block;height:100%;background:var(--amber)}
+.step.done{border-color:var(--good);background:var(--good-bg)}
+.step.done i em{background:var(--good)}
+
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:12px;overflow:hidden}
+.sec h2{margin:0;padding:12px 14px;font-family:Georgia,serif;font-size:18px;display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line)}
+.sec.done h2{background:var(--good-bg)}
+.sec h2 small{font-family:"Trebuchet MS",system-ui,sans-serif;font-size:14px;color:var(--muted);white-space:nowrap}
+.item{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);padding:12px 14px;color:var(--ink)}
+.item:last-child{border-bottom:0}
+.box{flex:none;width:26px;height:26px;border:2px solid var(--ink);border-radius:4px;display:grid;place-items:center;font-weight:700;margin-top:1px}
+.item.on .box{background:var(--good);border-color:var(--good);color:#fff}
+.item.on .txt{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.time{display:block;font-size:12px;color:var(--muted);text-decoration:none}
+
+.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 14px}
+.bottom .in{max-width:680px;margin:0 auto;display:flex;gap:8px}
+.btn{flex:1;padding:12px;border-radius:4px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:700}
+.btn.alt{background:transparent;color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.miss{background:var(--amber-bg);border-radius:5px;padding:10px 14px;margin-bottom:12px;font-size:14px}
+.miss ul{margin:6px 0 0;padding-left:18px}
+.exp{padding:14px}
+.exprow{display:flex;gap:8px;flex-wrap:wrap}
+.exp details{margin-top:12px;font-size:14px}
+.exp summary{cursor:pointer;font-weight:700}
+.exp ol{padding-left:18px;margin:8px 0}
+.exp input{width:100%;padding:10px;border:1.5px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.bar>i,.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Чек-лист смены</h1>
+  <div class="muted" id="date"></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-open" data-kind="open">Открытие</button>
+    <button class="tab" role="tab" id="t-close" data-kind="close">Закрытие</button>
+  </div>
+
+  <div class="who"><input id="name" placeholder="Имя сотрудника" autocomplete="name"></div>
+
+  <div class="total">
+    <div class="top"><span id="count" class="muted"></span><span class="pct" id="pct"></span></div>
+    <div class="bar" id="bar"><i id="barfill"></i></div>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <div id="miss" class="miss" hidden></div>
+  <div id="list"></div>
+
+  <section class="sec" id="export">
+    <h2><span>Выгрузка в Excel</span></h2>
+    <div class="exp">
+      <p class="muted" style="margin:0 0 10px">Одна строка на пункт: дата, сотрудник, чек-лист, раздел, пункт, выполнено, время.</p>
+      <div class="exprow">
+        <button class="btn" id="csv">Скачать для Excel</button>
+        <button class="btn alt" id="send">Отправить в таблицу</button>
+      </div>
+      <details id="setup">
+        <summary>Настроить отправку в таблицу</summary>
+        <ol class="muted">
+          <li>Создайте Google-таблицу, откройте «Расширения → Apps Script».</li>
+          <li>Вставьте код из файла apps-script.gs, нажмите «Развернуть → Веб-приложение» (доступ: все).</li>
+          <li>Скопируйте ссылку и вставьте сюда:</li>
+        </ol>
+        <input id="url" placeholder="https://script.google.com/macros/s/.../exec">
+      </details>
+    </div>
+  </section>
+</div>
+
+<div class="bottom"><div class="in">
+  <button class="btn" id="copy">Скопировать отчёт</button>
+  <button class="btn alt" id="reset">Начать заново</button>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = {
+  open: {title:"Открытие магазина", sections:[
+    ["Помещение",[
+      "Открыть помещение, отключить сигнализацию.",
+      "Включить свет, кассу, весы, если они выключены.",
+      "Открыть кассовую смену и отправить чек об открытии в группу.",
+      "Проверить температуру в холодильниках.",
+      "Осмотреть ТТ, кеговую, газовый баллон на наличие поломок/утечек. В случае проблем сообщить управляющему.",
+      "Провести влажную уборку торгового зала и рабочей зоны.",
+      "Выложить недостающую тару."]],
+    ["Касса",[
+      "Проверить разменные деньги.",
+      "Посчитать кассу, в случае недостачи сообщить управляющему.",
+      "Проверить кассовую тетрадь. Если что-то не записано, уточнить у сменщика и записать."]],
+    ["Товар",[
+      "Проверить сроки годности. Просроченное убрать с полок и сообщить управляющему.",
+      "Убедиться, что ценники соответствуют товарам.",
+      "Проверить наличие сопутствующих товаров. Сделать заявку по графику заявок.",
+      "Привести витрину в товарный вид.",
+      "Нафасовать сухари и орехи.",
+      "Нафасовать овощи."]],
+    ["Доставки",[
+      "При приходе товара проверить графу «получатель» (ООО Солодовенные Напитки) и адрес магазина.",
+      "Проверить количество и сроки годности.",
+      "Расставить товар по срокам годности (более свежее ставить за предыдущий приход).",
+      "Запросить недостающие ценники, распечатать и расставить.",
+      "Картофель и овощи на период отопления частично пересыпать в коробку и нафасовать по пакетам, остаток убрать в прохладное место.",
+      "Фото документов отправить в группу «МАХ»."]]
+  ]},
+  close: {title:"Закрытие магазина", sections:[
+    ["Продажи и касса",[
+      "Прекратить продажи в установленное время.",
+      "Закрыть кассовую смену.",
+      "Посчитать наличные, записать в тетрадь сумму в кассе, выручку и расходы (если были).",
+      "Отправить отчёт о закрытии в группу ТТ.",
+      "Сохранить отчёты и чеки по внутреннему регламенту."]],
+    ["Товар и оборудование",[
+      "Проверить закрытие всех кранов.",
+      "Перекрыть CO₂ по инструкции.",
+      "Проверить отсутствие протечек.",
+      "Проверить состояние кег и холодильников.",
+      "Утилизировать отходы и вынести мусор."]],
+    ["Помещение",[
+      "Протереть стойку, краны и рабочие поверхности, выставить тару, вымыть каплесборники.",
+      "Вымыть пол.",
+      "Пролить дренаж (1,5-2 л кипячёной воды в дренажную трубу).",
+      "Убрать санузел.",
+      "Проверить окна, двери и подсобные помещения.",
+      "Выключить свет, воду и бытовые приборы.",
+      "Включить сигнализацию.",
+      "Закрыть магазин и проверить замки."]]
+  ]}
+};
+
+const $ = id => document.getElementById(id);
+const today = new Date().toLocaleDateString("ru-RU");
+$("date").textContent = today;
+
+// Сохранение: работает, когда файл открыт в браузере; в превью без хранилища работает в памяти
+const mem = {};
+const store = {
+  get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]??null}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}
+};
+
+let kind = "open";
+let state = {};
+
+function load(){
+  let s = null;
+  try{ s = JSON.parse(store.get("chk:"+kind)); }catch(e){}
+  if(!s || s.date !== today) s = {date:today, name:(s&&s.name)||"", done:{}};
+  state = s;
+  $("name").value = state.name || "";
+}
+function save(){ store.set("chk:"+kind, JSON.stringify(state)); }
+const nowTime = () => new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+
+function render(){
+  const d = DATA[kind];
+  let total = 0, done = 0;
+  d.sections.forEach(([,items],si)=>items.forEach((_,ii)=>{total++; if(state.done[si+"-"+ii]) done++;}));
+  const pct = Math.round(done/total*100);
+  $("count").textContent = `Выполнено ${done} из ${total}`;
+  $("pct").textContent = pct+"%";
+  $("barfill").style.width = pct+"%";
+  $("bar").classList.toggle("full", done===total);
+
+  // этапы
+  $("steps").innerHTML = "";
+  d.sections.forEach(([name,items],si)=>{
+    const n = items.filter((_,ii)=>state.done[si+"-"+ii]).length;
+    const b = document.createElement("button");
+    b.className = "step"+(n===items.length?" done":"");
+    b.innerHTML = `<b></b><span>${n}/${items.length}</span><i><em style="width:${n/items.length*100}%"></em></i>`;
+    b.querySelector("b").textContent = (n===items.length?"✓ ":"")+name;
+    b.onclick = ()=>document.getElementById("sec"+si).scrollIntoView({behavior:"smooth",block:"start"});
+    $("steps").appendChild(b);
+  });
+
+  // разделы и пункты
+  const list = $("list"); list.innerHTML = "";
+  d.sections.forEach(([name,items],si)=>{
+    const n = items.filter((_,ii)=>state.done[si+"-"+ii]).length;
+    const sec = document.createElement("section");
+    sec.className = "sec"+(n===items.length?" done":""); sec.id = "sec"+si;
+    const h = document.createElement("h2");
+    h.innerHTML = `<span></span><small>${n}/${items.length}</small>`;
+    h.firstChild.textContent = name;
+    sec.appendChild(h);
+    items.forEach((text,ii)=>{
+      const key = si+"-"+ii, t = state.done[key];
+      const b = document.createElement("button");
+      b.className = "item"+(t?" on":""); b.setAttribute("aria-pressed", !!t);
+      b.innerHTML = `<span class="box">${t?"✓":""}</span><span class="txt"><span></span>${t?`<span class="time">отмечено в ${t}</span>`:""}</span>`;
+      b.querySelector(".txt > span").textContent = text;
+      b.onclick = ()=>{ if(state.done[key]) delete state.done[key]; else state.done[key] = nowTime(); save(); render(); };
+      sec.appendChild(b);
+    });
+    list.appendChild(sec);
+  });
+
+  // что осталось
+  const miss = [];
+  d.sections.forEach(([,items],si)=>items.forEach((t,ii)=>{ if(!state.done[si+"-"+ii]) miss.push(t); }));
+  const box = $("miss");
+  if(done>0 && miss.length && miss.length<=5){
+    box.hidden = false;
+    box.innerHTML = "<b>Осталось:</b><ul></ul>";
+    miss.forEach(t=>{const li=document.createElement("li");li.textContent=t;box.querySelector("ul").appendChild(li);});
+  } else box.hidden = true;
+}
+
+function report(){
+  const d = DATA[kind]; const lines = []; let total=0, done=0, missing=[];
+  d.sections.forEach(([,items],si)=>items.forEach((t,ii)=>{total++; if(state.done[si+"-"+ii]) done++; else missing.push(t);}));
+  lines.push(`${d.title}, ${today}`);
+  lines.push(`Сотрудник: ${state.name||"не указан"}`);
+  lines.push(`Выполнено: ${done} из ${total}`);
+  if(missing.length){ lines.push("", "Не выполнено:"); missing.forEach(t=>lines.push("— "+t)); }
+  else lines.push("Все пункты выполнены.");
+  return lines.join("\n");
+}
+
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800)}
+
+$("copy").onclick = async ()=>{
+  const text = report();
+  try{ await navigator.clipboard.writeText(text); toast("Отчёт скопирован"); }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
+    try{document.execCommand("copy"); toast("Отчёт скопирован");}catch(_){toast("Не удалось скопировать")}
+    ta.remove();
+  }
+};
+$("reset").onclick = ()=>{
+  if(!confirm("Сбросить все отметки этого чек-листа?")) return;
+  state.done = {}; save(); render();
+};
+$("name").oninput = e=>{ state.name = e.target.value; save(); };
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ kind=b.dataset.kind; setTab(); load(); render(); window.scrollTo({top:0}); });
+function setTab(){ ["open","close"].forEach(k=>$("t-"+k).setAttribute("aria-selected", k===kind)); }
+
+// ---- выгрузка в таблицу
+const HEAD = ["Дата","Сотрудник","Чек-лист","Раздел","Пункт","Выполнено","Время отметки","Ключ"];
+function rows(){
+  const d = DATA[kind], out = [];
+  d.sections.forEach(([sec,items],si)=>items.forEach((t,ii)=>{
+    const tm = state.done[si+"-"+ii];
+    out.push([today, state.name||"", d.title, sec, t, tm?"Да":"Нет", tm||"", `${today}|${state.name||""}|${d.title}`]);
+  }));
+  return out;
+}
+$("csv").onclick = ()=>{
+  const q = v => '"'+String(v).replace(/"/g,'""')+'"';
+  const csv = "\uFEFF" + [HEAD, ...rows()].map(r=>r.map(q).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download = `chek-list_${kind}_${today.split(".").reverse().join("-")}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast("Файл скачан, откройте его в Excel");
+};
+$("url").value = store.get("chk:url") || "";
+$("url").oninput = e => store.set("chk:url", e.target.value.trim());
+$("send").onclick = async ()=>{
+  const url = $("url").value.trim();
+  if(!url){ $("setup").open = true; toast("Сначала вставьте ссылку таблицы"); return; }
+  if(!state.name){ toast("Укажите имя сотрудника"); return; }
+  try{
+    await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(rows())});
+    toast("Отправлено, проверьте таблицу");
+  }catch(e){ toast("Не удалось отправить"); }
+};
+
+setTab(); load(); render();
+</script>
+</body>
+</html>
